@@ -55,6 +55,7 @@ const uint8_t lightning[22][15] = {
 
 Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
+int c = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -62,8 +63,8 @@ void setup() {
 
     initDisplay();
 
-    drawQRCode("lnbc50u1pwm79t2pp5ekujth2kuuxd92ydrhzzpu2uyx7x45qrt2smd332azqguh8zquuqdp9d35kw6r5de5kueeqve6hxcnpd3kzqvfsxqcrqcqzpg36h5ww50y2270n0d3m6l2reepcr85ttrwgy9vjtu4pse3ca6n3e4d40d4krzd2xpjmdxs4duv5a9q8dauvt2aq6a7df08692d0jw5jcplzt6na");
-//    drawLightning();
+//    drawQRCode("lnbc50u1pwm79t2pp5ekujth2kuuxd92ydrhzzpu2uyx7x45qrt2smd332azqguh8zquuqdp9d35kw6r5de5kueeqve6hxcnpd3kzqvfsxqcrqcqzpg36h5ww50y2270n0d3m6l2reepcr85ttrwgy9vjtu4pse3ca6n3e4d40d4krzd2xpjmdxs4duv5a9q8dauvt2aq6a7df08692d0jw5jcplzt6na\0");
+    drawLightning(YELLOW);
 }
 
 void loop() {
@@ -81,7 +82,19 @@ void loop() {
      pinMode(YP, OUTPUT);
      
 //     drawQRCode("lnbc50u1pwm79t2pp5ekujth2kuuxd92ydrhzzpu2uyx7x45qrt2smd332azqguh8zquuqdp9d35kw6r5de5kueeqve6hxcnpd3kzqvfsxqcrqcqzpg36h5ww50y2270n0d3m6l2reepcr85ttrwgy9vjtu4pse3ca6n3e4d40d4krzd2xpjmdxs4duv5a9q8dauvt2aq6a7df08692d0jw5jcplzt6na");
-     drawLightning();
+     if (c == 0) {
+       drawLightning(BLACK);
+       c = 1;
+       delay(1000);
+       return;
+     }
+     if (c == 1) {
+       drawLightning(YELLOW);
+       c = 0;
+       delay(1000);
+       return; 
+     }
+     
    }
 }
 
@@ -114,12 +127,12 @@ void drawQRCode(char str[]) {
     Serial.println("qr code ploted");
 }
 
-void drawLightning() {
+void drawLightning(uint16_t color) {
     tft.fillScreen(WHITE);
     for (int y = 0; y < 22; y++) {
         for (int x = 0; x < 15; x++) {
             if (lightning[y][x]) {
-                tft.fillRect(x*10+90, y*10+10, 10, 10, YELLOW);
+                tft.fillRect(x*10+90, y*10+10, 10, 10, color);
             }
         }
     }
