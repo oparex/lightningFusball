@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#include "qrcodegen.h"
 
 #include "secrets.h"
 
@@ -21,27 +22,88 @@ const char* macaroon = LND_MACAROON;
 const char* ssid = SECRET_SSID;
 const char* pass = SECRET_PASS;
 
+byte messageBuffer[500];
+bool messageProcessed = true;
+
+char* invoiceBuffer;
+uint8_t qrcode[353];
+uint8_t tempBuffer[353];
+enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
+
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  Serial.println();
-  Serial.println("connecting to wifi");
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
-  Serial.println("connected to wifi");
-//  Serial.println(getBtcEurPrice());
-
-  Serial.println(getNewInvoice(10000));
 }
 
-void loop() {}
+void loop() {
 
-String getNewInvoice(int price) {
+  if (Serial.available() > 0) {
+    readSerial();
+  }
+  
+  if (messageProcessed == false && isClickMsg()) {
+
+    invoiceBuffer = getNewInvoice(1000);
+
+    bool ok = qrcodegen_encodeText(invoiceBuffer, tempBuffer, qrcode, errCorLvl,
+                qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
+    if (ok) {
+      sendQRCodeMessage();
+    }
+  } 
+}
+
+bool isClickMsg(void) {
+  byte previousByte = 0x00;
+  byte currentByte = 0x00;
+  uint8_t mode = 0;
+
+  for (int j = 0; j < 500; j++) {
+    previousByte = currentByte;
+    currentByte = messageBuffer[j];
+
+    if (mode == 0 && previousByte == 0xfe && currentByte == 0xfe) {
+      mode++;
+    }
+    if (mode == 1 && previousByte == 0xff && currentByte == 0xff) {
+      mode++;
+    }
+  }
+  if (mode == 2) {
+    messageProcessed = true;
+    return true;  
+  }
+  return false;
+}
+
+void sendQRCodeMessage(void) {
+  // send start bytes
+  Serial.print(0xfd);
+  Serial.print(0xfd);
+
+  for (int i = 0; i < 353; i++) {
+     Serial.print(qrcode[i]);
+  }
+
+  Serial.print(0xff);
+  Serial.print(0xff);
+}
+
+void sendPaidInvoiceMsg(void) {
+  Serial.print(0xfc);
+  Serial.print(0xfc);
+  Serial.print(0xff);
+  Serial.print(0xff);
+}
+
+char* getNewInvoice(int price) {
   WiFiClientSecure client;
   client.setFingerprint(lndFingerprint);
 
@@ -81,7 +143,7 @@ String getNewInvoice(int price) {
     return "-2";
   }
 
-  String pay_req = doc["payment_request"];
+  char* pay_req = doc["payment_request"];
 
   return pay_req; 
 }
@@ -123,4 +185,27 @@ int getBtcEurPrice() {
   int price = gamePrice / bid.toInt();
 
   return price;
+}
+
+static bool calcQr(char* text) {
+  // Make and print the QR Code symbol
+  
+  bool ok = qrcodegen_encodeText(text, tempBuffer, qrcode, errCorLvl,
+    qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
+  if (ok) {
+    return true;
+  }
+  return false;
+}
+
+void readSerial(void) {
+  int cnt = 0;
+  while (Serial.available() > 0) {
+    byte currentByte = Serial.read();
+    if (cnt < 500) {
+      messageBuffer[cnt] = currentByte;
+      cnt++;
+    }
+  }
+  messageProcessed = false;
 }
