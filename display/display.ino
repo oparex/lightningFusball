@@ -30,21 +30,25 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 TSPoint p;
 
 byte messageBuffer[500];
-bool messageProcessed = true;
-uint8_t qrcode[353];
+int cnt = 0;
 uint8_t screen = 0;
 long timer;
+uint8_t qrcode[304];
+//uint8_t tempBuffer[353];
+//enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;
 
 void setup() {
     Serial.begin(115200);
     while (!Serial) { ; }
+    Serial.println();
+    Serial.println("start");
     initDisplay();
     drawLightning(YELLOW);
 }
 
 void loop() {
 
-  if (Serial.available() > 0 && messageProcessed == true) {
+  if (Serial.available() > 0) {
     readSerial();
   }
 
@@ -56,24 +60,23 @@ void loop() {
     }
   }
   if (screen == 1) {
-    if (messageProcessed == false && readQRCodeMsg()) {
+    if (cnt > 0 && readQRCodeMsg()) {
+      Serial.println("got qr code");
       pinMode(XM, OUTPUT);
       pinMode(YP, OUTPUT);
       drawQr(qrcode);
       timer = millis();
       screen++;
-    } else {
-      screen = 0;
     }
   }
-  if (screen == 2) {
-    if (millis() - timer > 10000) {
-      pinMode(XM, OUTPUT);
-      pinMode(YP, OUTPUT);
-      drawLightning(YELLOW);
-      screen = 0;
-    } 
-  }
+//  if (screen == 2) {
+//    if (millis() - timer > 10000) {
+//      pinMode(XM, OUTPUT);
+//      pinMode(YP, OUTPUT);
+//      drawLightning(YELLOW);
+//      screen = 0;
+//    } 
+//  }
 }
 
 static void initDisplay(void) {
@@ -91,8 +94,10 @@ static void drawQr(const uint8_t qrcode[]) {
   for (int y = -4; y < 57; y++) {
     for (int x = -4; x < 57; x++) {
       if (qrcodegen_getModule(qrcode, x, y)) {
+        Serial.println("true");
         tft.fillRect(x*4+54, y*4+14, 4, 4, BLACK);  
       }
+      delay(10);
     }
   }
 }
@@ -116,10 +121,10 @@ void drawLightning(uint16_t color) {
 
 void sendClickMsg(void) {
   // send start bytes
-  Serial.print(0xfe);
-  Serial.print(0xfe);
-  Serial.print(0xff);
-  Serial.print(0xff);
+  Serial.write(0xfe);
+  Serial.write(0xfe);
+  Serial.write(0xff);
+  Serial.write(0xff);
 }
 
 bool readQRCodeMsg(void) {
@@ -135,17 +140,14 @@ bool readQRCodeMsg(void) {
     if (mode == 0 && previousByte == 0xfd && currentByte == 0xfd) {
       mode++;
     }
-    if (mode == 1 && i < 353) {
+    if (mode == 1 && i < 304) {
       qrcode[i] = currentByte;
       i++;
     }
-    if (i == 353 && previousByte == 0xff && currentByte == 0xff) {
-      mode++;
+    if (i == 304 && previousByte == 0xff && currentByte == 0xff) {
+      cnt = 0;
+      return true;
     }
-  }
-  if (mode == 2) {
-    messageProcessed = true;
-    return true;  
   }
   return false;
 }
@@ -155,10 +157,6 @@ bool isInvoicdePaidMsg(void) {
   byte currentByte = 0x00;
   uint8_t mode = 0;
 
-  if (messageProcessed) {
-    return false;  
-  }
-
   for (int j = 0; j < 500; j++) {
     previousByte = currentByte;
     currentByte = messageBuffer[j];
@@ -167,24 +165,25 @@ bool isInvoicdePaidMsg(void) {
       mode++;
     }
     if (mode == 1 && previousByte == 0xff && currentByte == 0xff) {
-      mode++;
+      cnt = 0;
+      return true;
     }
-  }
-  if (mode == 2) {
-    messageProcessed = true;
-    return true;
   }
   return false;
 }
 
 void readSerial(void) {
-  int cnt = 0;
   while (Serial.available() > 0) {
     byte currentByte = Serial.read();
+    Serial.print(cnt);
+    Serial.print(" ");
+    Serial.println(currentByte);
     if (cnt < 500) {
       messageBuffer[cnt] = currentByte;
       cnt++;
     }
+    if (cnt == 500) {
+      cnt = 0;  
+    }
   }
-  messageProcessed = false;
 }
