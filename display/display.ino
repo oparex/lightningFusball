@@ -33,7 +33,7 @@ byte messageBuffer[500];
 int cnt = 0;
 uint8_t screen = 0;
 long timer;
-uint8_t qrcode[304];
+uint8_t qrcode[353];
 //uint8_t tempBuffer[353];
 //enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;
 
@@ -65,7 +65,6 @@ void loop() {
       pinMode(XM, OUTPUT);
       pinMode(YP, OUTPUT);
       drawQr(qrcode);
-      timer = millis();
       screen++;
     }
   }
@@ -94,10 +93,8 @@ static void drawQr(const uint8_t qrcode[]) {
   for (int y = -4; y < 57; y++) {
     for (int x = -4; x < 57; x++) {
       if (qrcodegen_getModule(qrcode, x, y)) {
-        Serial.println("true");
         tft.fillRect(x*4+54, y*4+14, 4, 4, BLACK);  
       }
-      delay(10);
     }
   }
 }
@@ -140,31 +137,11 @@ bool readQRCodeMsg(void) {
     if (mode == 0 && previousByte == 0xfd && currentByte == 0xfd) {
       mode++;
     }
-    if (mode == 1 && i < 304) {
+    if (mode == 1 && i < 353) {
       qrcode[i] = currentByte;
       i++;
     }
-    if (i == 304 && previousByte == 0xff && currentByte == 0xff) {
-      cnt = 0;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool isInvoicdePaidMsg(void) {
-  byte previousByte = 0x00;
-  byte currentByte = 0x00;
-  uint8_t mode = 0;
-
-  for (int j = 0; j < 500; j++) {
-    previousByte = currentByte;
-    currentByte = messageBuffer[j];
-
-    if (mode == 0 && previousByte == 0xfd && currentByte == 0xfd) {
-      mode++;
-    }
-    if (mode == 1 && previousByte == 0xff && currentByte == 0xff) {
+    if (i == 353 && previousByte == 0xff && currentByte == 0xff) {
       cnt = 0;
       return true;
     }
