@@ -25,8 +25,8 @@ const char* lndHost = "89.212.162.6";
 const char* lndUrl = "/v1/invoices";
 const int lndPort = 8080;
 
-long invoiceExpiery = -1;
-char* invoiceBuffer;
+//long invoiceExpiery = -1;
+//char* invoiceBuffer;
 uint8_t qrcode[353];
 uint8_t tempBuffer[353];
 enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;
@@ -44,6 +44,7 @@ void setup() {
 
     tft.begin();
     touch.begin(tft.width(), tft.height());
+    tft.setRotation(3);
     touch.setCalibration(209, 1759, 1775, 273);
     drawLightning();
 
@@ -63,19 +64,21 @@ void loop() {
 
     if (touch.isTouching()) {
         
-        if (millis() - invoiceExpiery > 0) {
-            getNewInvoice(1000);
-            qrcodegen_encodeText(invoiceBuffer, tempBuffer, qrcode, errCorLvl,
+//        if (millis() - invoiceExpiery > 0) {
+//            invoiceBuffer = getNewInvoice(1000);
+//            invoiceExpiery = millis() + 3600000;
+            qrcodegen_encodeText(getNewInvoice(1000), tempBuffer, qrcode, errCorLvl,
                 qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
-        }
+//        }
 
         drawQr();
         
         if (waitForPayment() > 0) {
-            pinMode(4, OUTPUT);
-            digitalWrite(4, HIGH);
-            delay(1000);
-            digitalWrite(4, LOW);
+            Serial.println("paid");
+            // pinMode(4, OUTPUT);
+            // digitalWrite(4, HIGH);
+            // delay(1000);
+            // digitalWrite(4, LOW);
         }
 
         drawLightning();
@@ -95,20 +98,22 @@ int waitForPayment() {
     long startTimer = millis();
     while (client.connected()) {
         String line = client.readStringUntil('\n');
-        if (line.indexOf("SETTLED") > 0) {
-            invoiceExpiery = -1;
+//        if (line.indexOf(invoiceBuffer) > 0 && line.indexOf("SETTLED") > 0) {
+          if (line.indexOf("SETTLED") > 0) {
             client.stop();
+            delay(1000);
             return 1;
         }
         if (millis() - startTimer > 30000) {
             client.stop();
+            delay(1000);
             return 0;
         }
     }
     return 0;
 }
 
-void getNewInvoice(int price) {
+const char* getNewInvoice(int price) {
 
     if (!client.connect(lndHost, lndPort)) {
         return "-1";
@@ -136,7 +141,7 @@ void getNewInvoice(int price) {
 
     String line = client.readStringUntil('\n');
 
-    StaticJsonDocument<340> doc;
+    StaticJsonDocument<356> doc;
     DeserializationError error = deserializeJson(doc, line);
 
     if (error) {
@@ -144,8 +149,8 @@ void getNewInvoice(int price) {
     }
 
     const char* pay_req = doc["payment_request"];
-    invoiceBuffer = pay_req;
-    invoiceExpiery = millis() + 3600000;
+    
+    return pay_req;
 }
 
 static void drawQr() {
