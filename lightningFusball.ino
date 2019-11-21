@@ -48,6 +48,8 @@ void setup() {
     touch.setCalibration(209, 1759, 1775, 273);
     drawLightning();
 
+//    Serial.println();
+//    Serial.println("connecting");
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
@@ -55,14 +57,22 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
     }
+
+//    Serial.println();
+//    Serial.println("connected");
     
     client.setFingerprint(lndFingerprint);
+
+    pinMode(0, OUTPUT);
+    digitalWrite(0, HIGH);
     
 }
 
 void loop() {
 
     if (touch.isTouching()) {
+
+//      Serial.println("touch");
         
 //        if (millis() - invoiceExpiery > 0) {
 //            invoiceBuffer = getNewInvoice(1000);
@@ -74,11 +84,10 @@ void loop() {
         drawQr();
         
         if (waitForPayment() > 0) {
-            Serial.println("paid");
-            // pinMode(4, OUTPUT);
-            // digitalWrite(4, HIGH);
-            // delay(1000);
-            // digitalWrite(4, LOW);
+//            Serial.println("paid");
+             digitalWrite(0, LOW);
+             delay(1000);
+             digitalWrite(0, HIGH);
         }
 
         drawLightning();
