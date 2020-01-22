@@ -1,5 +1,7 @@
 # lightningFusball
 
+![basic setup](/setup.jpg)
+
 esp8266 + display + relay + selenoid motor solution for paying for table foosball
 
 ## Parts
